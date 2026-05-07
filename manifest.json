@@ -1,9 +1,10 @@
 {
 	"id": "bujuan",
 	"name": "Bujuan",
-	"version": "0.1.0",
+	"version": "1.0.0",
 	"minAppVersion": "1.12.4",
 	"description": "Organize daily goals in a focused workbench with AI next-step suggestions, inspiration notes, and progress history.",
-	"author": "Bujuan",
+	"author": "Shang Gao",
+	"license": "MIT",
 	"isDesktopOnly": false
 }
