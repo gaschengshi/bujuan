@@ -25,36 +25,24 @@ export function GoalCard(props: GoalCardProps) {
 	const [hiddenBySleep, setHiddenBySleep] = useState(false);
 	const [confirmedText, setConfirmedText] = useState("");
 	const chosen = getCurrentChosen(props.goal);
-	const latestPending = useMemo(() => {
-		const steps = props.goal.frontmatter.steps ?? [];
-		const pending = steps.filter((s: GoalStep) => s.status === "ready");
-		return pending.length > 0 ? pending[pending.length - 1] : undefined;
-	}, [props.goal.frontmatter.steps]);
 	const [localChosen, setLocalChosen] = useState(chosen?.description ?? "");
 
-	// 切换到新目标卡片时，重置本地确认态，避免串卡
 	useEffect(() => {
 		setConfirmedText(chosen?.description ?? "");
-		setLocalChosen(chosen?.description ?? latestPending?.description ?? "");
+		setLocalChosen(chosen?.description ?? "");
 		setHiddenBySleep(false);
 		setSleepingPending(false);
 	}, [props.goal.file.path]);
 
-	// 当外部数据变化且不在保存中时，同步本地状态
 	useEffect(() => {
-		if (!saving) {
-			setLocalChosen(chosen?.description ?? latestPending?.description ?? "");
-		}
-		// 只在真正读到 chosen 时更新确认态，避免刷新前短暂空态把本地确认冲掉
-		if (chosen?.description) {
+		if (!saving && chosen?.description) {
+			setLocalChosen(chosen.description);
 			setConfirmedText(chosen.description);
 		}
-	}, [chosen?.description, latestPending?.description, saving]);
+	}, [chosen?.description, saving]);
 
 	const ready = (props.readyOptions && props.readyOptions.length > 0 ? props.readyOptions : getReadySteps(props.goal).map((s) => s.description)).slice(0, 3);
 	const history = useMemo(() => readHistory(props.goal), [props.goal]);
-
-	// 计算当前进行到第几项
 	const currentStepIndex = useMemo(() => {
 		const steps = props.goal.frontmatter.steps ?? [];
 		if (!chosen) return 0;
@@ -64,8 +52,6 @@ export function GoalCard(props: GoalCardProps) {
 
 	const lastDone = history[0];
 	const lastDoneTime = formatLastDone(lastDone?.completed_at);
-
-	// 如果有选中的步骤（或刚刚点击选中尚未刷新），则不显示 AI 候选项
 	const showAI = !chosen && confirmedText.trim() === "" && ready.length > 0;
 	const localTrimmed = localChosen.trim();
 	const confirmedInUi = localTrimmed.length > 0 && localTrimmed === confirmedText.trim();
@@ -79,7 +65,7 @@ export function GoalCard(props: GoalCardProps) {
 			setLocalChosen(text);
 			setConfirmedText(text);
 		} catch (_error) {
-			// Keep previous UI state on failure
+			// Keep previous UI state on failure.
 		} finally {
 			setSaving(false);
 		}
@@ -113,34 +99,34 @@ export function GoalCard(props: GoalCardProps) {
 		<section className="pwb-card">
 			<div className="pwb-card-header">
 				<div className="pwb-goal-title">{props.goal.title}</div>
-				<div className="pwb-last-time">上次进行：{lastDoneTime}</div>
+				<div className="pwb-last-time">Last progress: {lastDoneTime}</div>
 			</div>
 
 			<div className="pwb-current-row">
-				<span className="pwb-label">当前进行</span>
+				<span className="pwb-label">Current</span>
 				<div className="pwb-input-group">
 					<input
 						className="pwb-current-input"
 						type="text"
 						value={localChosen}
 						onInput={(e) => setLocalChosen((e.currentTarget as HTMLInputElement).value)}
-						placeholder="请选择或输入当前任务"
+						placeholder="Choose or type the current step"
 					/>
-					{currentStepIndex > 0 && <span className="pwb-step-badge">第 {currentStepIndex} 项</span>}
+					{currentStepIndex > 0 && <span className="pwb-step-badge">Step {currentStepIndex}</span>}
 					<div className="pwb-inline-buttons">
 						{needConfirm && (
-							<button className="pwb-btn-confirm mod-cta" disabled={saving} onClick={() => void handleConfirm()} title="确认选中该任务">
-								{saving ? "..." : "选中"}
+							<button className="pwb-btn-confirm mod-cta" disabled={saving} onClick={() => void handleConfirm()} title="Confirm this step">
+								{saving ? "..." : "Select"}
 							</button>
 						)}
 						<button className="pwb-btn-ai" onClick={() => void props.onGenerateAi(props.goal, localChosen)}>
-							AI建议
+							AI suggestions
 						</button>
 						<button className="pwb-btn-next" onClick={() => void handleNextStep()}>
-							下一步
+							Next step
 						</button>
 						<button className="pwb-btn-record" onClick={() => void props.onRecord(props.goal)}>
-							记录
+							Record
 						</button>
 					</div>
 				</div>
@@ -154,7 +140,7 @@ export function GoalCard(props: GoalCardProps) {
 							<StepInput
 								key={`step-${props.goal.file.path}-${index}`}
 								value={itemText}
-								checked={false}
+								checked={localTrimmed.length > 0 && localTrimmed === itemText}
 								onChange={(text) => {
 									void props.onReadyTextChange(props.goal, index, text);
 								}}
@@ -169,10 +155,10 @@ export function GoalCard(props: GoalCardProps) {
 
 			<div className="pwb-history">
 				<div className="pwb-prev-row">
-					<span className="pwb-label">上一步</span>
+					<span className="pwb-label">Previous</span>
 					<input className="pwb-current-input" readOnly value={lastDone?.description ?? ""} />
 					<button className="mod-muted" onClick={() => setExpanded((prev) => !prev)}>
-						{expanded ? "收起" : "查看全部"}
+						{expanded ? "Collapse" : "See all"}
 					</button>
 				</div>
 				{expanded && (
@@ -190,13 +176,13 @@ export function GoalCard(props: GoalCardProps) {
 
 			<div className="pwb-goal-end-actions">
 				<button className="mod-muted" disabled={sleepingPending} onClick={() => void handleSleep()}>
-					{sleepingPending ? "休眠中..." : "💤休眠"}
+					{sleepingPending ? "Sleeping..." : "Sleep"}
 				</button>
 				<button className="mod-warning" onClick={() => void props.onArchive(props.goal)}>
-					🗑归档
+					Archive
 				</button>
 				<button className="mod-cta" onClick={() => void props.onFinish(props.goal)}>
-					🏁完成
+					Finish
 				</button>
 			</div>
 		</section>
@@ -238,19 +224,19 @@ function renderHistoryNote(note: string, goal: GoalRecord, onOpenHistoryNote: (g
 
 function formatLastDone(value?: string): string {
 	if (!value) {
-		return "暂无";
+		return "None yet";
 	}
 	const datePart = value.slice(0, 10);
 	const parsed = new Date(`${datePart}T00:00:00`);
 	if (Number.isNaN(parsed.getTime())) {
-		return datePart || "暂无";
+		return datePart || "None yet";
 	}
 	const now = new Date();
 	const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 	const target = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
 	const diffDays = Math.floor((today.getTime() - target.getTime()) / (24 * 60 * 60 * 1000));
 	if (diffDays >= 0 && diffDays <= 6) {
-		return diffDays === 0 ? "今天" : `${diffDays}天前`;
+		return diffDays === 0 ? "Today" : `${diffDays} days ago`;
 	}
 	return datePart;
 }
