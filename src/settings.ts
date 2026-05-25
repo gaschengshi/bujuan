@@ -4,6 +4,7 @@ import PWorkbenchPlugin from "./main";
 export interface PWorkbenchSettings {
 	maxActiveGoals: number;
 	dormantDays: number;
+	bufferTaskName: string;
 	aiApiKey: string;
 	aiBaseUrl: string;
 	aiModel: string;
@@ -11,6 +12,22 @@ export interface PWorkbenchSettings {
 	goalsFolder: string;
 	inboxFolder: string;
 	todayGoalPaths: string[];
+	dailyRecords: Record<string, DailyRecord>;
+}
+
+export interface DailyRecord {
+	date: string;
+	checkedIn: boolean;
+	primaryEntry?: DailyRecordEntry;
+	activities: DailyRecordEntry[];
+}
+
+export interface DailyRecordEntry {
+	type: "step" | "buffer" | "timer";
+	label: string;
+	goalPath?: string;
+	durationMs?: number;
+	finishedAt: string;
 }
 
 export const DEFAULT_AI_PROMPT_TEMPLATE = [
@@ -31,6 +48,7 @@ export const DEFAULT_AI_PROMPT_TEMPLATE = [
 export const DEFAULT_SETTINGS: PWorkbenchSettings = {
 	maxActiveGoals: 3,
 	dormantDays: 7,
+	bufferTaskName: "呼吸一下",
 	aiApiKey: "",
 	aiBaseUrl: "https://api.openai.com/v1/chat/completions",
 	aiModel: "",
@@ -38,6 +56,7 @@ export const DEFAULT_SETTINGS: PWorkbenchSettings = {
 	goalsFolder: "Goals",
 	inboxFolder: "Inbox",
 	todayGoalPaths: [],
+	dailyRecords: {},
 };
 
 export class PWorkbenchSettingTab extends PluginSettingTab {
@@ -64,6 +83,20 @@ export class PWorkbenchSettingTab extends PluginSettingTab {
 					.setDynamicTooltip()
 					.onChange(async (value) => {
 						this.plugin.settings.maxActiveGoals = Math.max(1, Math.min(5, value));
+						await this.plugin.saveSettings();
+						this.plugin.requestRefresh();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("默认任务")
+			.setDesc("工作台底部缓冲项的名字。留空时使用“呼吸一下”。")
+			.addText((text) =>
+				text
+					.setPlaceholder(DEFAULT_SETTINGS.bufferTaskName)
+					.setValue(this.plugin.settings.bufferTaskName)
+					.onChange(async (value) => {
+						this.plugin.settings.bufferTaskName = value.trim();
 						await this.plugin.saveSettings();
 						this.plugin.requestRefresh();
 					})

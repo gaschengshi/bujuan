@@ -98,7 +98,7 @@ export function GoalCard(props: GoalCardProps) {
 	return (
 		<section className="pwb-card">
 			<div className="pwb-card-header">
-				<div className="pwb-goal-title">{props.goal.title}</div>
+				<div className="pwb-goal-title">🎯 {props.goal.title}</div>
 				<div className="pwb-last-time">Last progress: {lastDoneTime}</div>
 			</div>
 

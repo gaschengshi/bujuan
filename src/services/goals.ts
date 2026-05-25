@@ -46,7 +46,7 @@ function makeInspirationName(stepText: string): string {
 	return `灵感-${base}-${stamp}.md`;
 }
 
-const AI_SECTION_TITLE = "## 🧩 AI 拆解区";
+const AI_SECTION_TITLE = "## 🧩 子任务";
 
 function normalizeId(id: string): string {
 	return id.replace(/^\^+/, "").trim();
@@ -100,7 +100,7 @@ current_step_id:
 ---
 # ${goalName.trim()}
 
-> 任务概述
+> 任务概述：
 
 ${AI_SECTION_TITLE}
 `;

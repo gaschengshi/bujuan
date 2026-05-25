@@ -18,7 +18,7 @@ function asString(value: unknown, fallback = ""): string {
 	return typeof value === "string" ? value : fallback;
 }
 
-const AI_SECTION_TITLE = "## 🧩 AI 拆解区";
+const AI_SECTION_TITLE = "## 🧩 子任务";
 
 function normalizeId(id: string): string {
 	return id.replace(/^\^+/, "").trim();

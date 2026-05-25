@@ -112,7 +112,7 @@ export default class PWorkbenchPlugin extends Plugin {
 	applyTodaySelection(goals: GoalRecord[]): GoalRecord[] {
 		const selectedPaths = this.settings.todayGoalPaths ?? [];
 		if (selectedPaths.length === 0) {
-			return goals;
+			return []; // 如果今天没有选择任何目标，则返回空，而不是返回所有目标
 		}
 		const map = new Map(goals.map((g) => [g.file.path, g]));
 		const selected: GoalRecord[] = [];
@@ -122,7 +122,7 @@ export default class PWorkbenchPlugin extends Plugin {
 				selected.push(hit);
 			}
 		}
-		return selected.length > 0 ? selected : goals;
+		return selected;
 	}
 
 	async updateTodayGoalPaths(paths: string[]): Promise<void> {
@@ -131,8 +131,64 @@ export default class PWorkbenchPlugin extends Plugin {
 		this.requestRefresh();
 	}
 
+	getTodayRecordKey(): string {
+		const now = new Date();
+		const pad = (value: number) => String(value).padStart(2, "0");
+		return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+	}
+
+	isCheckedInToday(): boolean {
+		const key = this.getTodayRecordKey();
+		return this.settings.dailyRecords?.[key]?.checkedIn === true;
+	}
+
+	getCheckInStreakDays(): number {
+		const records = this.settings.dailyRecords ?? {};
+		const cursor = new Date();
+		let streak = 0;
+		const pad = (value: number) => String(value).padStart(2, "0");
+		while (true) {
+			const key = `${cursor.getFullYear()}-${pad(cursor.getMonth() + 1)}-${pad(cursor.getDate())}`;
+			if (records[key]?.checkedIn !== true) {
+				if (streak === 0 && key === this.getTodayRecordKey()) {
+					cursor.setDate(cursor.getDate() - 1);
+					continue;
+				}
+				break;
+			}
+			streak += 1;
+			cursor.setDate(cursor.getDate() - 1);
+		}
+		return streak;
+	}
+
+	async checkInToday(entry: { type: "step" | "buffer"; label: string; goalPath?: string }): Promise<boolean> {
+		const date = this.getTodayRecordKey();
+		const record = this.settings.dailyRecords?.[date] ?? { date, checkedIn: false, activities: [] };
+		const wasCheckedIn = record.checkedIn;
+		const completedEntry = {
+			...entry,
+			finishedAt: new Date().toISOString(),
+		};
+		this.settings.dailyRecords = {
+			...(this.settings.dailyRecords ?? {}),
+			[date]: {
+				...record,
+				date,
+				checkedIn: true,
+				primaryEntry: record.primaryEntry ?? completedEntry,
+				activities: [...(record.activities ?? []), completedEntry],
+			},
+		};
+		await this.saveSettings();
+		this.requestRefresh();
+		return !wasCheckedIn;
+	}
+
 	async loadSettings(): Promise<void> {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, (await this.loadData()) as Partial<PWorkbenchSettings>);
+		this.settings.bufferTaskName = this.settings.bufferTaskName?.trim() || DEFAULT_SETTINGS.bufferTaskName;
+		this.settings.dailyRecords = this.settings.dailyRecords ?? {};
 	}
 
 	async saveSettings(): Promise<void> {
@@ -200,7 +256,6 @@ class ReselectGoalsModal extends Modal {
 		const { contentEl } = this;
 		contentEl.empty();
 		contentEl.createEl("h3", { text: "重新选择今天任务" });
-		contentEl.createEl("p", { text: `最多选择 ${this.plugin.settings.maxActiveGoals} 个。` });
 		this.selectedPaths = new Set(this.plugin.settings.todayGoalPaths ?? []);
 
 		const folder = normalizePath(this.plugin.settings.goalsFolder);
@@ -222,10 +277,12 @@ class ReselectGoalsModal extends Modal {
 			type: "text",
 			placeholder: "搜索目标名称...",
 		});
+		searchInput.addClass("pwb-modal-input");
 		searchInput.style.width = "100%";
 		searchInput.style.marginBottom = "10px";
 
 		this.listContainer = contentEl.createDiv();
+		this.listContainer.addClass("pwb-modal-list");
 		this.listContainer.style.maxHeight = "280px";
 		this.listContainer.style.overflowY = "auto";
 		this.listContainer.style.paddingRight = "4px";
@@ -266,6 +323,11 @@ class ReselectGoalsModal extends Modal {
 			checkbox.checked = this.selectedPaths.has(item.path);
 			checkbox.addEventListener("change", () => {
 				if (checkbox.checked) {
+					if (this.selectedPaths.size >= this.plugin.settings.maxActiveGoals) {
+						checkbox.checked = false;
+						new Notice(`不要贪多噢，今日可选目标已满（上限 ${this.plugin.settings.maxActiveGoals} 个）`);
+						return;
+					}
 					this.selectedPaths.add(item.path);
 				} else {
 					this.selectedPaths.delete(item.path);
@@ -277,10 +339,6 @@ class ReselectGoalsModal extends Modal {
 
 	private async submit(): Promise<void> {
 		const selected = Array.from(this.selectedPaths);
-		if (selected.length > this.plugin.settings.maxActiveGoals) {
-			new Notice(`最多只能选择 ${this.plugin.settings.maxActiveGoals} 个任务。`);
-			return;
-		}
 		// 若选中了休眠任务，应用时自动唤醒为 active
 		for (const path of selected) {
 			const candidate = this.candidates.find((item) => item.path === path);
@@ -404,11 +462,11 @@ class RandomPickModal extends Modal {
 		try {
 			const selected = this.plugin.settings.todayGoalPaths ?? [];
 			const alreadySelected = selected.includes(this.current.path);
-			if (!alreadySelected && selected.length >= this.plugin.settings.maxActiveGoals) {
-				new Notice("不要贪多噢，今日可选目标已满，你重新选择或增加可选目标数量");
-				return;
-			}
 			if (!alreadySelected) {
+				if (selected.length >= this.plugin.settings.maxActiveGoals) {
+					new Notice(`不要贪多噢，今日可选目标已满（上限 ${this.plugin.settings.maxActiveGoals} 个）`);
+					return;
+				}
 				const file = this.plugin.app.vault.getAbstractFileByPath(this.current.path);
 				if (file instanceof TFile) {
 					await this.plugin.app.fileManager.processFrontMatter(file, (fm) => {

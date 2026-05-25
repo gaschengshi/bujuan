@@ -29,13 +29,16 @@ export function Dashboard(props: DashboardProps) {
 	const [busy, setBusy] = useState(false);
 	const [aiOptionsByGoal, setAiOptionsByGoal] = useState<Record<string, string[]>>({});
 	const [sleepingPaths, setSleepingPaths] = useState<Set<string>>(new Set());
+	const checkedInToday = props.plugin.isCheckedInToday();
+	const streakDays = props.plugin.getCheckInStreakDays();
+	const bufferTaskName = props.plugin.settings.bufferTaskName || "呼吸一下";
+	const maxGoals = props.plugin.settings.maxActiveGoals;
 	const suggestions = useMemo(() => collectGoalNameCandidates(props.plugin, goalName), [props.plugin, goalName, props.goals]);
 	const effectiveGoals = useMemo(
 		() => props.goals.filter((goal) => !sleepingPaths.has(goal.file.path)),
 		[props.goals, sleepingPaths]
 	);
-	const visibleGoals = effectiveGoals.slice(0, props.plugin.settings.maxActiveGoals);
-	const left = Math.max(0, props.plugin.settings.maxActiveGoals - visibleGoals.length);
+	const leftCount = Math.max(0, maxGoals - effectiveGoals.length);
 	const today = new Date().toLocaleDateString();
 
 	useEffect(() => {
@@ -62,13 +65,16 @@ export function Dashboard(props: DashboardProps) {
 		}
 		setBusy(true);
 		try {
-			const file = await addGoalToToday(props.plugin, goalName);
 			const prev = props.plugin.settings.todayGoalPaths ?? [];
+			// 检查是否已达到上限
+			if (prev.length >= maxGoals) {
+				new Notice(`不要贪多噢，今日可选目标已满（上限 ${maxGoals} 个）`);
+				return;
+			}
+			const file = await addGoalToToday(props.plugin, goalName);
 			const dedup = [file.path, ...prev.filter((p) => p !== file.path)];
-			props.plugin.settings.todayGoalPaths = dedup.slice(0, props.plugin.settings.maxActiveGoals);
-			await props.plugin.saveSettings();
+			await props.plugin.updateTodayGoalPaths(dedup);
 			setGoalName("");
-			await props.onRefresh();
 		} catch (error) {
 			const code = (error as Error).message;
 			if (code === "goal-not-active") {
@@ -83,11 +89,35 @@ export function Dashboard(props: DashboardProps) {
 		}
 	};
 
+	const completeBufferTask = async () => {
+		if (busy || checkedInToday) {
+			return;
+		}
+		setBusy(true);
+		try {
+			const isFirst = await props.plugin.checkInToday({
+				type: "buffer",
+				label: bufferTaskName,
+			});
+			if (isFirst) {
+				new Notice(`今日打卡成功！已连续打卡 ${props.plugin.getCheckInStreakDays()} 天`);
+			}
+			await props.onRefresh();
+		} finally {
+			setBusy(false);
+		}
+	};
+
 	return (
 		<div className="pwb-dashboard">
+			<div className="pwb-streak-row">
+				<span className="pwb-streak-label">已坚持打卡</span>
+				<span className="pwb-streak-value">{streakDays}</span>
+				<span className="pwb-streak-label">天</span>
+			</div>
 			<header className="pwb-top">
 				<div className="pwb-date">{today}</div>
-				<div className="pwb-focus-count">今天还能专注 {left} 件事</div>
+				<div className="pwb-focus-count">今天还能专注 {leftCount} 件事</div>
 			</header>
 
 			<div className="pwb-add-row">
@@ -102,13 +132,13 @@ export function Dashboard(props: DashboardProps) {
 						<option key={name} value={name} />
 					))}
 				</datalist>
-				<button disabled={busy || left <= 0} onClick={() => void createGoal()}>
+				<button disabled={busy} onClick={() => void createGoal()}>
 					添加目标
 				</button>
 			</div>
 
 			<div className="pwb-card-list">
-				{visibleGoals.map((goal) => (
+				{effectiveGoals.map((goal) => (
 					<GoalCard
 						key={goal.file.path}
 						goal={goal}
@@ -179,6 +209,14 @@ export function Dashboard(props: DashboardProps) {
 									setAiOptionsByGoal((prev) => ({ ...prev, [item.file.path]: [] }));
 									return false;
 								}
+								const isFirst = await props.plugin.checkInToday({
+									type: "step",
+									label: currentText.trim() || currentChosen?.description || item.title,
+									goalPath: item.file.path,
+								});
+								if (isFirst) {
+									new Notice(`今日打卡成功！已连续打卡 ${props.plugin.getCheckInStreakDays()} 天`);
+								}
 								setAiOptionsByGoal((prev) => ({ ...prev, [item.file.path]: [] }));
 								return true;
 							} finally {
@@ -234,6 +272,12 @@ export function Dashboard(props: DashboardProps) {
 						}}
 					/>
 				))}
+				{!checkedInToday && (
+					<button className="pwb-buffer-task" disabled={busy} onClick={() => void completeBufferTask()}>
+						<span className="pwb-buffer-icon">🌱</span>
+						<span>{bufferTaskName}</span>
+					</button>
+				)}
 			</div>
 		</div>
 	);

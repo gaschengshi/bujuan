@@ -8,6 +8,25 @@
 	gap: 12px;
 }
 
+.pwb-streak-row {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	padding: 6px 2px 0;
+	color: var(--text-muted);
+}
+
+.pwb-streak-value {
+	color: var(--text-normal);
+	font-size: 20px;
+	font-weight: 700;
+	line-height: 1;
+}
+
+.pwb-streak-label {
+	font-size: 12px;
+}
+
 .pwb-top {
 	display: flex;
 	align-items: center;
@@ -26,8 +45,9 @@
 }
 
 .pwb-focus-count {
-	font-size: 14px;
-	font-weight: 600;
+	font-size: 12px;
+	color: var(--text-accent);
+	font-weight: 500;
 }
 
 .pwb-add-row {
@@ -56,6 +76,31 @@
 	border-radius: 12px;
 	border: 1px solid var(--background-modifier-border);
 	background: var(--background-primary);
+}
+
+.pwb-buffer-task {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+	padding: 8px 12px;
+	border-radius: 8px;
+	border: 1px dashed var(--background-modifier-border);
+	background: transparent;
+	color: var(--text-faint); /* 更淡的颜色 */
+	font-size: 12px; /* 更小的字号 */
+	text-align: left;
+	box-shadow: none;
+	cursor: pointer;
+}
+
+.pwb-buffer-task:hover {
+	color: var(--text-normal);
+	background: var(--background-secondary);
+}
+
+.pwb-buffer-icon {
+	font-size: 14px;
 }
 
 .pwb-card-header {
