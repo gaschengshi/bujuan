@@ -12,14 +12,14 @@ function parseJsonFromText(text: string): AiResponsePayload | null {
 	const raw = text.trim();
 	try {
 		return JSON.parse(raw) as AiResponsePayload;
-	} catch (_error) {
+	} catch {
 		const match = raw.match(/\{[\s\S]*\}/);
 		if (!match) {
 			return null;
 		}
 		try {
 			return JSON.parse(match[0]) as AiResponsePayload;
-		} catch (_innerError) {
+		} catch {
 			return null;
 		}
 	}

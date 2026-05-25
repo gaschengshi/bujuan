@@ -116,13 +116,13 @@ async function findGoalFileByName(plugin: PWorkbenchPlugin, goalName: string): P
 function getGoalStatus(plugin: PWorkbenchPlugin, file: TFile): string {
 	const cache = plugin.app.metadataCache.getFileCache(file);
 	const fm = cache?.frontmatter as Record<string, unknown> | undefined;
-	return String(fm?.status ?? "active");
+	return typeof fm?.status === "string" ? fm.status : "active";
 }
 
 function getDormantUntil(plugin: PWorkbenchPlugin, file: TFile): string {
 	const cache = plugin.app.metadataCache.getFileCache(file);
 	const fm = cache?.frontmatter as Record<string, unknown> | undefined;
-	return String(fm?.dormant_until ?? "");
+	return typeof fm?.dormant_until === "string" ? fm.dormant_until : "";
 }
 
 function updateStepsInSection(body: string, steps: GoalStep[]): string {
@@ -396,7 +396,7 @@ export async function createOrOpenInspiration(plugin: PWorkbenchPlugin, goal: Go
 
 	const existingLink = chosen.note?.match(/\[\[(.+?)\]\]/)?.[0];
 	if (existingLink) {
-		const file = plugin.app.metadataCache.getFirstLinkpathDest(existingLink.replace(/[\[\]]/g, ""), goal.file.path);
+		const file = plugin.app.metadataCache.getFirstLinkpathDest(existingLink.replace(/[[\]]/g, ""), goal.file.path);
 		if (file instanceof TFile) {
 			await plugin.app.workspace.getLeaf(true).openFile(file);
 			return;
@@ -532,7 +532,7 @@ export async function buildAiContextWithInspiration(
 	try {
 		const goalContent = await plugin.app.vault.cachedRead(goal.file);
 		overview = extractGoalOverview(goalContent);
-	} catch (_error) {
+	} catch {
 		overview = "";
 	}
 	const doneSteps = (goal.frontmatter.steps ?? []).filter((s: GoalStep) => s.status === "done");
@@ -556,7 +556,7 @@ export async function buildAiContextWithInspiration(
 			if (excerpt) {
 				inspirations.push(`${step.description}｜${excerpt}`);
 			}
-		} catch (_error) {
+		} catch {
 			// ignore single note read failure
 		}
 	}

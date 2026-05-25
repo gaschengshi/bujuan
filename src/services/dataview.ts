@@ -129,12 +129,12 @@ export async function queryActiveGoals(app: App, goalsFolder: string): Promise<G
 				status: "active",
 				created: asString(fm.created),
 				completed_date: asString(fm.completed_date) || null,
-				tags: Array.isArray(fm.tags) ? (fm.tags as string[]) : [],
+				tags: Array.isArray(fm.tags) ? fm.tags : [],
 				step_count: fm.step_count || steps.length,
 				done_count: fm.done_count || steps.filter((s) => s.status === "done").length,
 				current_step_id: fm.current_step_id || null,
 				steps, // 注入解析出的步骤
-			} as any,
+			} as GoalRecord["frontmatter"],
 		});
 	}
 

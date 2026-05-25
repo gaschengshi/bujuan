@@ -18,22 +18,22 @@ export default class PWorkbenchPlugin extends Plugin {
 
 		this.registerView(P_WORKBENCH_VIEW_TYPE, (leaf) => new PWorkbenchView(leaf, this));
 		// 左侧栏快捷图标：点击直接打开 P人工作台
-		this.addRibbonIcon("leaf", "打开P人工作台", () => {
+		this.addRibbonIcon("leaf", "Open workbench", () => {
 			void this.activateWorkbench();
 		});
-		this.addRibbonIcon("dice", "P人工作台：随便选一个", () => {
+		this.addRibbonIcon("dice", "Pick one for today", () => {
 			new RandomPickModal(this).open();
 		});
 		this.addCommand({
 			id: "open-p-workbench",
-			name: "打开P人工作台",
+			name: "Open workbench",
 			callback: () => {
 				void this.activateWorkbench();
 			},
 		});
 		this.addCommand({
 			id: "random-pick-goal",
-			name: "P人工作台：随便选一个",
+			name: "Pick one for today",
 			callback: () => {
 				new RandomPickModal(this).open();
 			},
@@ -93,7 +93,7 @@ export default class PWorkbenchPlugin extends Plugin {
 			}
 			await leaf.setViewState({ type: P_WORKBENCH_VIEW_TYPE, active: true });
 		}
-		this.app.workspace.revealLeaf(leaf);
+		void this.app.workspace.revealLeaf(leaf);
 		const view = leaf.view;
 		if (view instanceof PWorkbenchView) {
 			await view.reload();
@@ -265,7 +265,7 @@ class ReselectGoalsModal extends Modal {
 		for (const file of files) {
 			const cache = this.plugin.app.metadataCache.getFileCache(file);
 			const fm = cache?.frontmatter as Record<string, unknown> | undefined;
-			const status = String(fm?.status ?? "active");
+			const status = typeof fm?.status === "string" ? fm.status : "active";
 			// 仅显示 active / dormant
 			if (status !== "active" && status !== "dormant") {
 				continue;
@@ -413,7 +413,7 @@ class RandomPickModal extends Modal {
 		for (const file of files) {
 			const cache = this.plugin.app.metadataCache.getFileCache(file);
 			const fm = cache?.frontmatter as Record<string, unknown> | undefined;
-			const status = String(fm?.status ?? "active");
+			const status = typeof fm?.status === "string" ? fm.status : "active";
 			if (status !== "active" && status !== "dormant") {
 				continue;
 			}

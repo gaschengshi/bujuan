@@ -1,4 +1,3 @@
-import { h } from "preact";
 import { useEffect, useMemo, useState } from "preact/hooks";
 import type { GoalRecord, GoalStep } from "../types";
 import { StepInput } from "./StepInput";
@@ -64,7 +63,7 @@ export function GoalCard(props: GoalCardProps) {
 			await props.onChosenTextChange(props.goal, text);
 			setLocalChosen(text);
 			setConfirmedText(text);
-		} catch (_error) {
+		} catch {
 			// Keep previous UI state on failure.
 		} finally {
 			setSaving(false);
@@ -109,7 +108,7 @@ export function GoalCard(props: GoalCardProps) {
 						className="pwb-current-input"
 						type="text"
 						value={localChosen}
-						onInput={(e) => setLocalChosen((e.currentTarget as HTMLInputElement).value)}
+						onInput={(e) => setLocalChosen(e.currentTarget.value)}
 						placeholder="Choose or type the current step"
 					/>
 					{currentStepIndex > 0 && <span className="pwb-step-badge">Step {currentStepIndex}</span>}

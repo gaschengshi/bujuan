@@ -1,4 +1,3 @@
-import { h } from "preact";
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { Notice } from "obsidian";
 import type PWorkbenchPlugin from "../main";
@@ -124,7 +123,7 @@ export function Dashboard(props: DashboardProps) {
 				<input
 					list="pwb-goal-suggest"
 					value={goalName}
-					onInput={(evt) => setGoalName((evt.currentTarget as HTMLInputElement).value)}
+					onInput={(evt) => setGoalName(evt.currentTarget.value)}
 					placeholder="添加目标：输入名称自动匹配/新建"
 				/>
 				<datalist id="pwb-goal-suggest">
@@ -251,7 +250,7 @@ export function Dashboard(props: DashboardProps) {
 								await new Promise((resolve) => window.setTimeout(resolve, 80));
 								await props.onRefresh();
 								return true;
-							} catch (_error) {
+							} catch {
 								// 失败时回滚 UI
 								setSleepingPaths((prev) => {
 									const next = new Set(prev);

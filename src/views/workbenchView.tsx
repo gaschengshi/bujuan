@@ -22,7 +22,7 @@ export class PWorkbenchView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		return "P人工作台";
+		return "Bujuan workbench";
 	}
 
 	getIcon(): string {
@@ -44,7 +44,7 @@ export class PWorkbenchView extends ItemView {
 			this.contentEl.empty();
 			this.contentEl.createEl("div", {
 				cls: "pwb-empty",
-				text: "未检测到 Dataview，请先安装并启用 Dataview 插件。",
+				text: "Dataview not detected. Please install and enable dataview first",
 			});
 			return;
 		}
@@ -55,7 +55,7 @@ export class PWorkbenchView extends ItemView {
 			this.goals = this.plugin.applyTodaySelection(goals);
 			render(<Dashboard plugin={this.plugin} goals={this.goals} onRefresh={() => this.reload()} />, this.contentEl);
 		} catch (error) {
-			new Notice("加载 P人工作台失败，请检查目标文件 frontmatter。");
+			new Notice("Failed to load workbench. Please check goal frontmatter");
 			console.error("[P人工作台] reload failed", error);
 		}
 	}
