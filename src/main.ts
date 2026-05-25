@@ -212,10 +212,11 @@ class NewGoalModal extends Modal {
 			type: "text",
 			placeholder: "输入目标名称",
 		});
-		input.style.width = "100%";
-		input.style.marginBottom = "12px";
+		input.addClass("pwb-modal-input");
+		input.addClass("pwb-modal-gap-bottom");
 		input.focus();
 		const button = contentEl.createEl("button", { text: "创建" });
+		button.addClass("mod-cta");
 		const submit = async () => {
 			button.disabled = true;
 			try {
@@ -278,14 +279,10 @@ class ReselectGoalsModal extends Modal {
 			placeholder: "搜索目标名称...",
 		});
 		searchInput.addClass("pwb-modal-input");
-		searchInput.style.width = "100%";
-		searchInput.style.marginBottom = "10px";
+		searchInput.addClass("pwb-modal-gap-bottom");
 
 		this.listContainer = contentEl.createDiv();
 		this.listContainer.addClass("pwb-modal-list");
-		this.listContainer.style.maxHeight = "280px";
-		this.listContainer.style.overflowY = "auto";
-		this.listContainer.style.paddingRight = "4px";
 		this.renderList("");
 
 		searchInput.addEventListener("input", (evt) => {
@@ -294,7 +291,8 @@ class ReselectGoalsModal extends Modal {
 		});
 
 		const button = contentEl.createEl("button", { text: "应用选择" });
-		button.style.marginTop = "10px";
+		button.addClass("pwb-modal-gap-top");
+		button.addClass("mod-cta");
 		button.onclick = () => {
 			void this.submit();
 		};
@@ -315,10 +313,7 @@ class ReselectGoalsModal extends Modal {
 
 		for (const item of filtered) {
 			const row = this.listContainer.createEl("label");
-			row.style.display = "flex";
-			row.style.gap = "8px";
-			row.style.alignItems = "center";
-			row.style.marginBottom = "6px";
+			row.addClass("pwb-modal-row");
 			const checkbox = row.createEl("input", { type: "checkbox" });
 			checkbox.checked = this.selectedPaths.has(item.path);
 			checkbox.addEventListener("change", () => {
@@ -385,23 +380,19 @@ class RandomPickModal extends Modal {
 	onOpen(): void {
 		const { contentEl } = this;
 		contentEl.empty();
-		contentEl.style.padding = "12px 6px";
+		contentEl.addClass("pwb-random-modal");
 
 		this.headingEl = contentEl.createDiv({ text: "🎲 今天试试这个吧：" });
-		this.headingEl.style.fontSize = "16px";
-		this.headingEl.style.fontWeight = "600";
-		this.headingEl.style.marginBottom = "10px";
+		this.headingEl.addClass("pwb-random-modal-title");
 
 		this.nameEl = contentEl.createDiv();
-		this.nameEl.style.fontSize = "18px";
-		this.nameEl.style.marginBottom = "14px";
+		this.nameEl.addClass("pwb-random-modal-goal");
 
 		const actions = contentEl.createDiv();
-		actions.style.display = "flex";
-		actions.style.gap = "8px";
-		actions.style.alignItems = "center";
+		actions.addClass("pwb-random-modal-actions");
 
 		this.confirmButton = actions.createEl("button", { text: "就它了" });
+		this.confirmButton.addClass("mod-cta");
 		this.rerollButton = actions.createEl("button", { text: "换一个" });
 
 		this.confirmButton.onclick = () => {
