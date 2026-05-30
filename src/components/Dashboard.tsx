@@ -3,6 +3,7 @@ import { Notice } from "obsidian";
 import type PWorkbenchPlugin from "../main";
 import type { GoalRecord } from "../types";
 import { GoalCard } from "./GoalCard";
+import { t, tp } from "../i18n";
 import {
 	addGoalToToday,
 	archiveGoal,
@@ -30,7 +31,7 @@ export function Dashboard(props: DashboardProps) {
 	const [sleepingPaths, setSleepingPaths] = useState<Set<string>>(new Set());
 	const checkedInToday = props.plugin.isCheckedInToday();
 	const streakDays = props.plugin.getCheckInStreakDays();
-	const bufferTaskName = props.plugin.settings.bufferTaskName || "呼吸一下";
+	const bufferTaskName = props.plugin.settings.bufferTaskName || t("Breathe", props.plugin.settings);
 	const maxGoals = props.plugin.settings.maxActiveGoals;
 	const suggestions = useMemo(() => collectGoalNameCandidates(props.plugin, goalName), [props.plugin, goalName, props.goals]);
 	const effectiveGoals = useMemo(
@@ -59,7 +60,7 @@ export function Dashboard(props: DashboardProps) {
 
 	const createGoal = async () => {
 		if (!goalName.trim()) {
-			new Notice("请输入目标名称。");
+			new Notice(t("Goal name empty", props.plugin.settings));
 			return;
 		}
 		setBusy(true);
@@ -67,7 +68,7 @@ export function Dashboard(props: DashboardProps) {
 			const prev = props.plugin.settings.todayGoalPaths ?? [];
 			// 检查是否已达到上限
 			if (prev.length >= maxGoals) {
-				new Notice(`不要贪多噢，今日可选目标已满（上限 ${maxGoals} 个）`);
+				new Notice(tp("Goal limit reached", props.plugin.settings, { max: maxGoals }));
 				return;
 			}
 			const file = await addGoalToToday(props.plugin, goalName);
@@ -77,11 +78,11 @@ export function Dashboard(props: DashboardProps) {
 		} catch (error) {
 			const code = (error as Error).message;
 			if (code === "goal-not-active") {
-				new Notice("该目标已完成或已归档，不能直接添加到今天。请新建目标。");
+				new Notice(t("Goal not active", props.plugin.settings));
 			} else if (code === "goal-dormant") {
-				new Notice("该目标当前处于休眠中，请手动修改状态为 active 后再添加。");
+				new Notice(t("Goal dormant", props.plugin.settings));
 			} else {
-				new Notice("添加目标失败。");
+				new Notice(t("Failed to add goal", props.plugin.settings));
 			}
 		} finally {
 			setBusy(false);
@@ -99,7 +100,7 @@ export function Dashboard(props: DashboardProps) {
 				label: bufferTaskName,
 			});
 			if (isFirst) {
-				new Notice(`今日打卡成功！已连续打卡 ${props.plugin.getCheckInStreakDays()} 天`);
+				new Notice(tp("Check-in successful", props.plugin.settings, { days: props.plugin.getCheckInStreakDays() }));
 			}
 			await props.onRefresh();
 		} finally {
@@ -110,13 +111,15 @@ export function Dashboard(props: DashboardProps) {
 	return (
 		<div className="pwb-dashboard">
 			<div className="pwb-streak-row">
-				<span className="pwb-streak-label">已坚持打卡</span>
+				<span className="pwb-streak-label">{t("Checked in for", props.plugin.settings)}</span>
 				<span className="pwb-streak-value">{streakDays}</span>
-				<span className="pwb-streak-label">天</span>
+				<span className="pwb-streak-label">{t("days", props.plugin.settings)}</span>
 			</div>
 			<header className="pwb-top">
-				<div className="pwb-date">{today}</div>
-				<div className="pwb-focus-count">今天还能专注 {leftCount} 件事</div>
+				<div className="pwb-date">
+					{t("Today", props.plugin.settings)}: {today}
+				</div>
+				<div className="pwb-focus-count">{tp("Focus on {{count}} more things", props.plugin.settings, { count: leftCount })}</div>
 			</header>
 
 			<div className="pwb-add-row">
@@ -124,7 +127,7 @@ export function Dashboard(props: DashboardProps) {
 					list="pwb-goal-suggest"
 					value={goalName}
 					onInput={(evt) => setGoalName(evt.currentTarget.value)}
-					placeholder="添加目标：输入名称自动匹配/新建"
+					placeholder={t("Add goal: enter name to match/create", props.plugin.settings)}
 				/>
 				<datalist id="pwb-goal-suggest">
 					{suggestions.map((name) => (
@@ -132,13 +135,14 @@ export function Dashboard(props: DashboardProps) {
 					))}
 				</datalist>
 				<button disabled={busy} onClick={() => void createGoal()}>
-					添加目标
+					{t("Add goal", props.plugin.settings)}
 				</button>
 			</div>
 
 			<div className="pwb-card-list">
 				{effectiveGoals.map((goal) => (
 					<GoalCard
+						plugin={props.plugin}
 						key={goal.file.path}
 						goal={goal}
 						readyOptions={aiOptionsByGoal[goal.file.path]}
@@ -189,15 +193,15 @@ export function Dashboard(props: DashboardProps) {
 							try {
 								const currentChosen = getCurrentChosen(item);
 								if (currentText.trim() && !confirmedInUi && (!currentChosen || currentText.trim() !== currentChosen.description)) {
-									new Notice("输入框中有未选中的文本");
+									new Notice(t("Input unconfirmed", props.plugin.settings));
 									return false;
 								}
 								if (!currentChosen) {
 									if (currentText.trim() && confirmedInUi) {
 										await updateChosenStepText(props.plugin, item, currentText.trim());
 									} else {
-									new Notice("请先点击“选中”确认当前任务，再执行下一步。");
-									return false;
+										new Notice(t("Input unconfirmed", props.plugin.settings));
+										return false;
 									}
 								}
 								const completed = await applyNextStepResult(props.plugin, item);
@@ -214,7 +218,7 @@ export function Dashboard(props: DashboardProps) {
 									goalPath: item.file.path,
 								});
 								if (isFirst) {
-									new Notice(`今日打卡成功！已连续打卡 ${props.plugin.getCheckInStreakDays()} 天`);
+									new Notice(tp("Check-in successful", props.plugin.settings, { days: props.plugin.getCheckInStreakDays() }));
 								}
 								setAiOptionsByGoal((prev) => ({ ...prev, [item.file.path]: [] }));
 								return true;
@@ -233,48 +237,55 @@ export function Dashboard(props: DashboardProps) {
 							}
 							const file = props.plugin.app.metadataCache.getFirstLinkpathDest(target, item.file.path);
 							if (!file) {
-								new Notice(`未找到笔记：${target}`);
+								new Notice(tp("Note not found: {{target}}", props.plugin.settings, { target }));
 								return;
 							}
 							await props.plugin.app.workspace.getLeaf(true).openFile(file);
 						}}
-						onSleep={async (item) => {
-							setSleepingPaths((prev) => {
-								const next = new Set(prev);
-								next.add(item.file.path);
-								return next;
-							});
-							try {
-								await sleepGoal(props.plugin, item);
+						onSleep={(item) => {
+							return sleepGoal(props.plugin, item)
+								.then(async () => {
+									await props.onRefresh();
+									await new Promise((resolve) => window.setTimeout(resolve, 80));
+									await props.onRefresh();
+									return true;
+								})
+								.catch(() => {
+									// 失败时回滚 UI
+									setSleepingPaths((prev) => {
+										const next = new Set(prev);
+										next.delete(item.file.path);
+										return next;
+									});
+									new Notice(t("Sleep failed", props.plugin.settings));
+									return false;
+								});
+						}}
+						onArchive={(item) => {
+							return archiveGoal(props.plugin, item).then(async () => {
 								await props.onRefresh();
 								await new Promise((resolve) => window.setTimeout(resolve, 80));
 								await props.onRefresh();
-								return true;
-							} catch {
-								// 失败时回滚 UI
-								setSleepingPaths((prev) => {
-									const next = new Set(prev);
-									next.delete(item.file.path);
-									return next;
-								});
-								new Notice("休眠失败，请重试。");
-								return false;
-							}
+							});
 						}}
-						onArchive={async (item) => {
-							await archiveGoal(props.plugin, item);
-							await props.onRefresh();
-						}}
-						onFinish={async (item) => {
-							await finishGoal(props.plugin, item);
-							await props.onRefresh();
+						onFinish={(item) => {
+							return finishGoal(props.plugin, item).then(async () => {
+								await props.onRefresh();
+								await new Promise((resolve) => window.setTimeout(resolve, 80));
+								await props.onRefresh();
+							});
 						}}
 					/>
 				))}
 				{!checkedInToday && (
-					<button className="pwb-buffer-task" disabled={busy} onClick={() => void completeBufferTask()}>
-						<span className="pwb-buffer-icon">🌱</span>
-						<span>{bufferTaskName}</span>
+					<button
+						className="pwb-buffer-task"
+						onClick={() => {
+							void completeBufferTask();
+						}}
+						disabled={busy}
+					>
+						🌱 {bufferTaskName}
 					</button>
 				)}
 			</div>

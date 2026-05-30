@@ -1,63 +1,8 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
-import PWorkbenchPlugin from "./main";
-
-export interface PWorkbenchSettings {
-	maxActiveGoals: number;
-	dormantDays: number;
-	bufferTaskName: string;
-	aiApiKey: string;
-	aiBaseUrl: string;
-	aiModel: string;
-	aiPromptTemplate: string;
-	goalsFolder: string;
-	inboxFolder: string;
-	todayGoalPaths: string[];
-	dailyRecords: Record<string, DailyRecord>;
-}
-
-export interface DailyRecord {
-	date: string;
-	checkedIn: boolean;
-	primaryEntry?: DailyRecordEntry;
-	activities: DailyRecordEntry[];
-}
-
-export interface DailyRecordEntry {
-	type: "step" | "buffer" | "timer";
-	label: string;
-	goalPath?: string;
-	durationMs?: number;
-	finishedAt: string;
-}
-
-export const DEFAULT_AI_PROMPT_TEMPLATE = [
-	"You are a task decomposition assistant designed for Perceiving (P) personality types.",
-	"Goal title: {{title}}",
-	"Goal overview: {{overview}}",
-	"Completed steps: {{done}}",
-	"Inspiration notes excerpt: {{inspirations}}",
-	"Current task: {{chosen}}",
-	"Based on current progress, provide 3 minimal, specific, and immediately actionable next steps.",
-	"Requirements:",
-	"1. Each step must be strictly under 15 words.",
-	"2. Steps must be tiny to reduce friction.",
-	"3. Return ONLY JSON format:",
-	'{"options": ["Step 1", "Step 2", "Step 3"]}',
-].join("\n");
-
-export const DEFAULT_SETTINGS: PWorkbenchSettings = {
-	maxActiveGoals: 3,
-	dormantDays: 7,
-	bufferTaskName: "Breathe",
-	aiApiKey: "",
-	aiBaseUrl: "https://api.openai.com/v1/chat/completions",
-	aiModel: "",
-	aiPromptTemplate: DEFAULT_AI_PROMPT_TEMPLATE,
-	goalsFolder: "Goals",
-	inboxFolder: "Inbox",
-	todayGoalPaths: [],
-	dailyRecords: {},
-};
+import type PWorkbenchPlugin from "./main";
+import { t } from "./i18n";
+import { PWorkbenchSettings } from "./types";
+import { DEFAULT_AI_PROMPT_TEMPLATE, DEFAULT_SETTINGS } from "./constants";
 
 export class PWorkbenchSettingTab extends PluginSettingTab {
 	plugin: PWorkbenchPlugin;
@@ -71,11 +16,27 @@ export class PWorkbenchSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		;
+		new Setting(containerEl).setName(t("General", this.plugin.settings)).setHeading();
 
 		new Setting(containerEl)
-			.setName("Max active goals")
-			.setDesc("Number of active goals to display on the workbench (1-5).")
+			.setName(t("Language", this.plugin.settings))
+			.setDesc(t("Select your language", this.plugin.settings))
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption("en", "English")
+					.addOption("zh", "简体中文")
+					.setValue(this.plugin.settings.language)
+					.onChange(async (value: "en" | "zh") => {
+						this.plugin.settings.language = value;
+						await this.plugin.saveSettings();
+						this.display(); // 刷新设置页面以应用新语言
+						this.plugin.requestRefresh();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName(t("Max active goals", this.plugin.settings))
+			.setDesc(t("Number of active goals to display", this.plugin.settings))
 			.addSlider((slider) =>
 				slider
 					.setLimits(1, 5, 1)
@@ -89,11 +50,11 @@ export class PWorkbenchSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Default task")
-			.setDesc("Name of the buffer task at the bottom. Defaults to \"breathe\"")
+			.setName(t("Default task", this.plugin.settings))
+			.setDesc(t("Name of the buffer task", this.plugin.settings))
 			.addText((text) =>
 				text
-					.setPlaceholder("Breathe")
+					.setPlaceholder(t("Breathe", this.plugin.settings))
 					.setValue(this.plugin.settings.bufferTaskName)
 					.onChange(async (value) => {
 						this.plugin.settings.bufferTaskName = value.trim();
@@ -103,8 +64,8 @@ export class PWorkbenchSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Dormant days")
-			.setDesc("Number of days before a sleeping goal returns to active")
+			.setName(t("Dormant days", this.plugin.settings))
+			.setDesc(t("Number of days before dormant returns", this.plugin.settings))
 			.addSlider((slider) =>
 				slider
 					.setLimits(1, 30, 1)
@@ -116,25 +77,28 @@ export class PWorkbenchSettingTab extends PluginSettingTab {
 					})
 			);
 
+		new Setting(containerEl).setName(t("Ai suggest", this.plugin.settings)).setHeading();
+
 		new Setting(containerEl)
-			.setName("API key")
-			.setDesc("Used for next step AI breakdown requests")
-			.addText((text) =>
+			.setName(t("Ai api key", this.plugin.settings))
+			.setDesc(t("Used for next step Ai breakdown", this.plugin.settings))
+			.addText((text) => {
+				text.inputEl.type = "password";
 				text
-					.setPlaceholder("Enter API key")
+					.setPlaceholder(t("Enter api key", this.plugin.settings))
 					.setValue(this.plugin.settings.aiApiKey)
 					.onChange(async (value) => {
 						this.plugin.settings.aiApiKey = value.trim();
 						await this.plugin.saveSettings();
-					})
-			);
+					});
+			});
 
 		new Setting(containerEl)
-			.setName("Base URL")
-			.setDesc("Compatible API endpoint address")
+			.setName(t("Ai base url", this.plugin.settings))
+			.setDesc(t("Compatible api endpoint address", this.plugin.settings))
 			.addText((text) =>
 				text
-					.setPlaceholder("Enter base URL")
+					.setPlaceholder(t("Enter base url", this.plugin.settings))
 					.setValue(this.plugin.settings.aiBaseUrl)
 					.onChange(async (value) => {
 						this.plugin.settings.aiBaseUrl = value.trim() || DEFAULT_SETTINGS.aiBaseUrl;
@@ -143,8 +107,8 @@ export class PWorkbenchSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Model")
-			.setDesc("Model name (e.g., deepseek-chat, gpt-4o-mini)")
+			.setName(t("Ai model", this.plugin.settings))
+			.setDesc(t("Ai model name", this.plugin.settings))
 			.addText((text) =>
 				text
 					.setPlaceholder("Deepseek-chat")
@@ -156,8 +120,8 @@ export class PWorkbenchSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("AI prompt template")
-			.setDesc("Editable template. Supports: {{title}} {{overview}} {{done}} {{inspirations}} {{chosen}}")
+			.setName(t("Ai prompt template", this.plugin.settings))
+			.setDesc(t("Editable template", this.plugin.settings))
 			.addTextArea((text) =>
 				text
 					.setPlaceholder(DEFAULT_AI_PROMPT_TEMPLATE)
@@ -169,8 +133,8 @@ export class PWorkbenchSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Goals folder")
-			.setDesc("Default directory for creating goal files.")
+			.setName(t("Goals folder", this.plugin.settings))
+			.setDesc(t("Default directory for goals", this.plugin.settings))
 			.addText((text) =>
 				text
 					.setPlaceholder("Goals")
@@ -183,8 +147,8 @@ export class PWorkbenchSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Inspiration folder")
-			.setDesc("Directory for creating inspiration notes.")
+			.setName(t("Inspiration folder", this.plugin.settings))
+			.setDesc(t("Directory for inspirations", this.plugin.settings))
 			.addText((text) =>
 				text
 					.setPlaceholder("Inbox")

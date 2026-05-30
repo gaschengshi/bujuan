@@ -1,8 +1,10 @@
 import { addIcon, Modal, Notice, normalizePath, Plugin, TFile, WorkspaceLeaf } from "obsidian";
-import { DEFAULT_SETTINGS, PWorkbenchSettingTab, PWorkbenchSettings } from "./settings";
+import { PWorkbenchSettingTab } from "./settings";
+import { DEFAULT_SETTINGS } from "./constants";
 import { P_WORKBENCH_VIEW_TYPE, PWorkbenchView } from "./views/workbenchView";
 import { createGoalFileOnly } from "./services/goals";
-import type { GoalRecord } from "./types";
+import type { GoalRecord, PWorkbenchSettings } from "./types";
+import { t, tp } from "./i18n";
 
 const SEEDLING_ICON_ID = "pwb-seedling";
 
@@ -18,50 +20,50 @@ export default class PWorkbenchPlugin extends Plugin {
 
 		this.registerView(P_WORKBENCH_VIEW_TYPE, (leaf) => new PWorkbenchView(leaf, this));
 		// 左侧栏快捷图标：点击直接打开 P人工作台
-		this.addRibbonIcon("leaf", "Open workbench", () => {
+		this.addRibbonIcon("leaf", t("Open workbench", this.settings), () => {
 			void this.activateWorkbench();
 		});
-		this.addRibbonIcon("dice", "Pick one for today", () => {
+		this.addRibbonIcon("dice", t("Pick one for today", this.settings), () => {
 			new RandomPickModal(this).open();
 		});
 		this.addCommand({
 			id: "open-p-workbench",
-			name: "Open workbench",
+			name: t("Bujuan: Open workbench", this.settings),
 			callback: () => {
 				void this.activateWorkbench();
 			},
 		});
 		this.addCommand({
 			id: "random-pick-goal",
-			name: "Pick one for today",
+			name: t("Bujuan: Pick one for today", this.settings),
 			callback: () => {
 				new RandomPickModal(this).open();
 			},
 		});
 		this.addCommand({
 			id: "create-goal-file",
-			name: "新建目标",
+			name: t("Bujuan: Create new goal", this.settings),
 			callback: () => {
 				new NewGoalModal(this, async (name) => {
 					const goalName = name.trim();
 					if (!goalName) {
-						new Notice("目标名称不能为空。");
+						new Notice(t("Goal name empty", this.settings));
 						return;
 					}
 					try {
 						const file = await createGoalFileOnly(this, goalName);
 						await this.app.workspace.getLeaf(true).openFile(file);
-						new Notice(`已创建目标：${goalName}`);
+						new Notice(tp("Updated today's goals", this.settings, { count: 1 }));
 					} catch (error) {
-						console.error("[P人工作台] 新建目标失败", error);
-						new Notice("新建目标失败。");
+						console.error("[Bujuan] Failed to create goal", error);
+						new Notice(t("Failed to add goal", this.settings));
 					}
 				}).open();
 			},
 		});
 		this.addCommand({
 			id: "reselect-today-goals",
-			name: "重新选择",
+			name: t("Bujuan: Reselect today's goals", this.settings),
 			callback: () => {
 				new ReselectGoalsModal(this).open();
 			},
@@ -199,7 +201,7 @@ export default class PWorkbenchPlugin extends Plugin {
 class NewGoalModal extends Modal {
 	private onSubmit: (name: string) => Promise<void>;
 
-	constructor(plugin: PWorkbenchPlugin, onSubmit: (name: string) => Promise<void>) {
+	constructor(public plugin: PWorkbenchPlugin, onSubmit: (name: string) => Promise<void>) {
 		super(plugin.app);
 		this.onSubmit = onSubmit;
 	}
@@ -207,15 +209,15 @@ class NewGoalModal extends Modal {
 	onOpen(): void {
 		const { contentEl } = this;
 		contentEl.empty();
-		contentEl.createEl("h3", { text: "新建目标" });
+		contentEl.createEl("h3", { text: t("Create new goal", this.plugin.settings) });
 		const input = contentEl.createEl("input", {
 			type: "text",
-			placeholder: "输入目标名称",
+			placeholder: t("Goal name", this.plugin.settings),
 		});
 		input.addClass("pwb-modal-input");
 		input.addClass("pwb-modal-gap-bottom");
 		input.focus();
-		const button = contentEl.createEl("button", { text: "创建" });
+		const button = contentEl.createEl("button", { text: t("Create", this.plugin.settings) });
 		button.addClass("mod-cta");
 		const submit = async () => {
 			button.disabled = true;
@@ -256,7 +258,7 @@ class ReselectGoalsModal extends Modal {
 	onOpen(): void {
 		const { contentEl } = this;
 		contentEl.empty();
-		contentEl.createEl("h3", { text: "重新选择今天任务" });
+		contentEl.createEl("h3", { text: t("Reselect today's goals", this.plugin.settings) });
 		this.selectedPaths = new Set(this.plugin.settings.todayGoalPaths ?? []);
 
 		const folder = normalizePath(this.plugin.settings.goalsFolder);
@@ -276,7 +278,7 @@ class ReselectGoalsModal extends Modal {
 
 		const searchInput = contentEl.createEl("input", {
 			type: "text",
-			placeholder: "搜索目标名称...",
+			placeholder: t("Search goal name", this.plugin.settings),
 		});
 		searchInput.addClass("pwb-modal-input");
 		searchInput.addClass("pwb-modal-gap-bottom");
@@ -290,7 +292,7 @@ class ReselectGoalsModal extends Modal {
 			this.renderList(keyword);
 		});
 
-		const button = contentEl.createEl("button", { text: "应用选择" });
+		const button = contentEl.createEl("button", { text: t("Apply selection", this.plugin.settings) });
 		button.addClass("pwb-modal-gap-top");
 		button.addClass("mod-cta");
 		button.onclick = () => {
@@ -307,7 +309,7 @@ class ReselectGoalsModal extends Modal {
 			? this.candidates.filter((item) => item.name.toLowerCase().includes(keyword))
 			: this.candidates;
 		if (filtered.length === 0) {
-			this.listContainer.createEl("div", { text: "未找到匹配目标。" });
+			this.listContainer.createEl("div", { text: t("No matching goals", this.plugin.settings) });
 			return;
 		}
 
@@ -320,7 +322,7 @@ class ReselectGoalsModal extends Modal {
 				if (checkbox.checked) {
 					if (this.selectedPaths.size >= this.plugin.settings.maxActiveGoals) {
 						checkbox.checked = false;
-						new Notice(`不要贪多噢，今日可选目标已满（上限 ${this.plugin.settings.maxActiveGoals} 个）`);
+						new Notice(tp("Goal limit reached", this.plugin.settings, { max: this.plugin.settings.maxActiveGoals }));
 						return;
 					}
 					this.selectedPaths.add(item.path);
@@ -351,7 +353,7 @@ class ReselectGoalsModal extends Modal {
 			});
 		}
 		await this.plugin.updateTodayGoalPaths(selected);
-		new Notice(`已更新今天任务：${selected.length} 个`);
+		new Notice(tp("Updated today's goals", this.plugin.settings, { count: selected.length }));
 		this.close();
 	}
 
@@ -382,7 +384,7 @@ class RandomPickModal extends Modal {
 		contentEl.empty();
 		contentEl.addClass("pwb-random-modal");
 
-		this.headingEl = contentEl.createDiv({ text: "🎲 今天试试这个吧：" });
+		this.headingEl = contentEl.createDiv({ text: t("How about this one today?", this.plugin.settings) });
 		this.headingEl.addClass("pwb-random-modal-title");
 
 		this.nameEl = contentEl.createDiv();
@@ -391,9 +393,9 @@ class RandomPickModal extends Modal {
 		const actions = contentEl.createDiv();
 		actions.addClass("pwb-random-modal-actions");
 
-		this.confirmButton = actions.createEl("button", { text: "就它了" });
+		this.confirmButton = actions.createEl("button", { text: t("Pick this one", this.plugin.settings) });
 		this.confirmButton.addClass("mod-cta");
-		this.rerollButton = actions.createEl("button", { text: "换一个" });
+		this.rerollButton = actions.createEl("button", { text: t("Reroll", this.plugin.settings) });
 
 		this.confirmButton.onclick = () => {
 			void this.confirmPick();
@@ -428,7 +430,7 @@ class RandomPickModal extends Modal {
 		}
 		if (this.candidates.length === 0) {
 			this.current = null;
-			this.nameEl.setText("暂无可选目标");
+			this.nameEl.setText(t("No available goals", this.plugin.settings));
 			this.confirmButton.disabled = true;
 			this.rerollButton.disabled = true;
 			return;
@@ -439,7 +441,7 @@ class RandomPickModal extends Modal {
 		}
 		const chosen = pool[Math.floor(Math.random() * pool.length)] ?? null;
 		this.current = chosen;
-		this.nameEl.setText(chosen?.name ?? "暂无可选目标");
+		this.nameEl.setText(chosen?.name ?? t("No available goals", this.plugin.settings));
 		this.confirmButton.disabled = !chosen;
 		this.rerollButton.disabled = this.candidates.length <= 1;
 	}
@@ -455,7 +457,7 @@ class RandomPickModal extends Modal {
 			const alreadySelected = selected.includes(this.current.path);
 			if (!alreadySelected) {
 				if (selected.length >= this.plugin.settings.maxActiveGoals) {
-					new Notice(`不要贪多噢，今日可选目标已满（上限 ${this.plugin.settings.maxActiveGoals} 个）`);
+					new Notice(tp("Goal limit reached", this.plugin.settings, { max: this.plugin.settings.maxActiveGoals }));
 					return;
 				}
 				const file = this.plugin.app.vault.getAbstractFileByPath(this.current.path);

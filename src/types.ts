@@ -30,6 +30,36 @@ export interface GoalRecord {
 	frontmatter: GoalFrontmatter;
 }
 
+export interface DailyRecordEntry {
+	type: "step" | "buffer" | "timer";
+	label: string;
+	goalPath?: string;
+	durationMs?: number;
+	finishedAt: string;
+}
+
+export interface DailyRecord {
+	date: string;
+	checkedIn: boolean;
+	primaryEntry?: DailyRecordEntry;
+	activities: DailyRecordEntry[];
+}
+
+export interface PWorkbenchSettings {
+	language: "en" | "zh";
+	maxActiveGoals: number;
+	dormantDays: number;
+	bufferTaskName: string;
+	aiApiKey: string;
+	aiBaseUrl: string;
+	aiModel: string;
+	aiPromptTemplate: string;
+	goalsFolder: string;
+	inboxFolder: string;
+	todayGoalPaths: string[];
+	dailyRecords: Record<string, DailyRecord>;
+}
+
 export interface DataviewPageLike {
 	file?: {
 		path?: string;

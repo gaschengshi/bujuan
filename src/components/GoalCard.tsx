@@ -2,8 +2,11 @@ import { useEffect, useMemo, useState } from "preact/hooks";
 import type { GoalRecord, GoalStep } from "../types";
 import { StepInput } from "./StepInput";
 import { getCurrentChosen, getReadySteps, readHistory } from "../services/goals";
+import { t, tp } from "../i18n";
+import type { PWorkbenchSettings } from "../types";
 
 interface GoalCardProps {
+	plugin: { settings: PWorkbenchSettings };
 	goal: GoalRecord;
 	readyOptions?: string[];
 	onReadyTextChange: (goal: GoalRecord, index: number, text: string) => Promise<void>;
@@ -50,7 +53,7 @@ export function GoalCard(props: GoalCardProps) {
 	}, [props.goal.frontmatter.steps, chosen]);
 
 	const lastDone = history[0];
-	const lastDoneTime = formatLastDone(lastDone?.completed_at);
+	const lastDoneTime = formatLastDone(lastDone?.completed_at, props.plugin.settings);
 	const showAI = !chosen && confirmedText.trim() === "" && ready.length > 0;
 	const localTrimmed = localChosen.trim();
 	const confirmedInUi = localTrimmed.length > 0 && localTrimmed === confirmedText.trim();
@@ -98,34 +101,45 @@ export function GoalCard(props: GoalCardProps) {
 		<section className="pwb-card">
 			<div className="pwb-card-header">
 				<div className="pwb-goal-title">🎯 {props.goal.title}</div>
-				<div className="pwb-last-time">Last progress: {lastDoneTime}</div>
+				<div className="pwb-last-time">
+					{t("Last progress", props.plugin.settings)}: {lastDoneTime}
+				</div>
 			</div>
 
 			<div className="pwb-current-row">
-				<span className="pwb-label">Current</span>
+				<span className="pwb-label">{t("Current", props.plugin.settings)}</span>
 				<div className="pwb-input-group">
 					<input
 						className="pwb-current-input"
 						type="text"
 						value={localChosen}
 						onInput={(e) => setLocalChosen(e.currentTarget.value)}
-						placeholder="Choose or type the current step"
+						placeholder={t("Choose or type the current step", props.plugin.settings)}
 					/>
-					{currentStepIndex > 0 && <span className="pwb-step-badge">Step {currentStepIndex}</span>}
+					{currentStepIndex > 0 && (
+						<span className="pwb-step-badge">
+							{tp("Step {{index}}", props.plugin.settings, { index: currentStepIndex })}
+						</span>
+					)}
 					<div className="pwb-inline-buttons">
 						{needConfirm && (
-							<button className="pwb-btn-confirm mod-cta" disabled={saving} onClick={() => void handleConfirm()} title="Confirm this step">
-								{saving ? "..." : "Select"}
+							<button
+								className="pwb-btn-confirm mod-cta"
+								disabled={saving}
+								onClick={() => void handleConfirm()}
+								title={t("Confirm this step", props.plugin.settings)}
+							>
+								{saving ? "..." : t("Select", props.plugin.settings)}
 							</button>
 						)}
 						<button className="pwb-btn-ai" onClick={() => void props.onGenerateAi(props.goal, localChosen)}>
-							AI suggestions
+							{t("Ai suggestions", props.plugin.settings)}
 						</button>
 						<button className="pwb-btn-next" onClick={() => void handleNextStep()}>
-							Next step
+							{t("Next step", props.plugin.settings)}
 						</button>
 						<button className="pwb-btn-record" onClick={() => void props.onRecord(props.goal)}>
-							Record
+							{t("Record", props.plugin.settings)}
 						</button>
 					</div>
 				</div>
@@ -137,9 +151,10 @@ export function GoalCard(props: GoalCardProps) {
 						const itemText = ready[index] ?? "";
 						return (
 							<StepInput
+								settings={props.plugin.settings}
 								key={`step-${props.goal.file.path}-${index}`}
 								value={itemText}
-								checked={localTrimmed.length > 0 && localTrimmed === itemText}
+								checked={localChosen === itemText}
 								onChange={(text) => {
 									void props.onReadyTextChange(props.goal, index, text);
 								}}
@@ -154,10 +169,10 @@ export function GoalCard(props: GoalCardProps) {
 
 			<div className="pwb-history">
 				<div className="pwb-prev-row">
-					<span className="pwb-label">Previous</span>
+					<span className="pwb-label">{t("Previous", props.plugin.settings)}</span>
 					<input className="pwb-current-input" readOnly value={lastDone?.description ?? ""} />
 					<button className="mod-muted" onClick={() => setExpanded((prev) => !prev)}>
-						{expanded ? "Collapse" : "See all"}
+						{expanded ? t("Collapse", props.plugin.settings) : t("See all", props.plugin.settings)}
 					</button>
 				</div>
 				{expanded && (
@@ -175,13 +190,13 @@ export function GoalCard(props: GoalCardProps) {
 
 			<div className="pwb-goal-end-actions">
 				<button className="mod-muted" disabled={sleepingPending} onClick={() => void handleSleep()}>
-					{sleepingPending ? "Sleeping..." : "Sleep"}
+					{sleepingPending ? t("Sleeping...", props.plugin.settings) : t("Sleep", props.plugin.settings)}
 				</button>
 				<button className="mod-warning" onClick={() => void props.onArchive(props.goal)}>
-					Archive
+					{t("Archive", props.plugin.settings)}
 				</button>
 				<button className="mod-cta" onClick={() => void props.onFinish(props.goal)}>
-					Finish
+					{t("Finish", props.plugin.settings)}
 				</button>
 			</div>
 		</section>
@@ -221,21 +236,17 @@ function renderHistoryNote(note: string, goal: GoalRecord, onOpenHistoryNote: (g
 	);
 }
 
-function formatLastDone(value?: string): string {
-	if (!value) {
-		return "None yet";
-	}
+function formatLastDone(value: string | undefined, settings: PWorkbenchSettings): string {
+	if (!value) return t("No history", settings);
 	const datePart = value.slice(0, 10);
-	const parsed = new Date(`${datePart}T00:00:00`);
-	if (Number.isNaN(parsed.getTime())) {
-		return datePart || "None yet";
-	}
-	const now = new Date();
-	const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-	const target = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
-	const diffDays = Math.floor((today.getTime() - target.getTime()) / (24 * 60 * 60 * 1000));
-	if (diffDays >= 0 && diffDays <= 6) {
-		return diffDays === 0 ? "Today" : `${diffDays} days ago`;
-	}
+	const today = new Date().toISOString().slice(0, 10);
+	if (datePart === today) return t("Today", settings);
+
+	const d1 = new Date(datePart);
+	const d2 = new Date(today);
+	const diffTime = Math.abs(d2.getTime() - d1.getTime());
+	const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+	if (diffDays >= 1 && diffDays <= 6) return tp("{{days}}d ago", settings, { days: diffDays });
 	return datePart;
 }

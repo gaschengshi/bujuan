@@ -1,8 +1,8 @@
 import { requestUrl } from "obsidian";
 import type PWorkbenchPlugin from "../main";
-import { DEFAULT_AI_PROMPT_TEMPLATE } from "../settings";
+import { DEFAULT_AI_PROMPT_TEMPLATE } from "../constants";
 
-interface AiResponsePayload {
+export interface AiResponsePayload {
 	options?: string[];
 	choices?: Array<{ message?: { content?: string } }>;
 	error?: { message?: string; type?: string };
